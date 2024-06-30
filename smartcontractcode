@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SafeBank {
+    address public owner;
+    mapping(address => uint256) private balances;
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    // Modifier to restrict access to the owner
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the contract owner");
+        _;
+    }
+
+    // Function to deposit funds
+    function deposit() public payable {
+        require(msg.value > 0, "Deposit amount must be greater than zero");
+        balances[msg.sender] += msg.value;
+    }
+
+    // Function to withdraw funds
+    function withdraw(uint256 amount) public {
+        require(amount > 0, "Withdraw amount must be greater than zero");
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+
+        balances[msg.sender] -= amount;
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Transfer failed");
+    }
+
+    // Function to set a new owner
+    function setOwner(address newOwner) public onlyOwner {
+        require(newOwner != address(0), "Invalid address for new owner");
+        owner = newOwner;
+    }
+
+    // Function to check balance
+    function checkBalance() public view returns (uint256) {
+        return balances[msg.sender];
+    }
+
+    // Function that uses assert to demonstrate its usage
+    function checkInvariant() public view {
+        // For example purposes, we assert that the contract balance equals the sum of all user balances
+        uint256 totalBalance = address(this).balance;
+        uint256 sumBalances = 0;
+        
+        for (uint256 i = 0; i < 5; i++) {
+            // This is a simplified example and should be modified to iterate over actual users
+            sumBalances += balances[address(uint160(i))];
+        }
+        
+        assert(totalBalance == sumBalances);
+    }
+
+    // Function that uses revert to demonstrate its usage
+    function emergencyWithdraw() public onlyOwner {
+        // Revert the transaction if the contract balance is less than 1 ether
+        if (address(this).balance < 1 ether) {
+            revert("Contract balance is too low for emergency withdrawal");
+        }
+
+        (bool success, ) = owner.call{value: address(this).balance}("");
+        require(success, "Emergency withdrawal failed");
+    }
+}
